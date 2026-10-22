@@ -12,7 +12,7 @@ export default {
   async fetch(req, env) {
     const { pathname } = new URL(req.url);
     try {
-      if (pathname === '/api/health') return json({ ok: true, keyConfigured: !!env.NEBIUS_API_KEY, baseUrl: env.NEBIUS_BASE_URL, models: { nano: env.MODEL_NANO, nanoOmni: env.MODEL_NANO_OMNI, ultra: env.MODEL_ULTRA } });
+      if (pathname === '/api/health') return json({ ok: true, keyConfigured: !!env.NEBIUS_API_KEY, baseUrl: env.NEBIUS_BASE_URL, models: { nano: env.MODEL_NANO, vision: env.MODEL_VISION, ultra: env.MODEL_ULTRA } });
       if (pathname === '/api/sample') return json(parseQuiz(SAMPLE_TEXT));
       if (req.method !== 'POST') return env.ASSETS.fetch(req);
       if (pathname === '/api/parse') return await parse(req, env);
@@ -28,19 +28,22 @@ export default {
 
 // ---------- Token Factory client: retry once on 429/5xx, one JSON-repair retry ----------
 
-async function chat(env, model, messages, { temperature = 0.3, max_tokens = 4000, validate = () => true, label = model } = {}) {
+async function chat(env, model, messages, { temperature = 0.3, max_tokens = 4000, validate = () => true, label = model, extra = {} } = {}) {
   if (!env.NEBIUS_API_KEY) throw Object.assign(new Error('NEBIUS_API_KEY is not configured on the server'), { status: 503 });
   let msgs = messages;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const data = await post(env, { model, messages: msgs, temperature, max_tokens });
+    // The repair attempt drops `extra` (e.g. thinking-off) so the model gets its full default effort.
+    const data = await post(env, { model, messages: msgs, temperature, max_tokens, ...(attempt ? {} : extra) });
     const m = data.choices?.[0]?.message || {};
     console.log(JSON.stringify({ call: label, usage: data.usage }));
     let out;
     try {
       out = extractJson(m.content || m.reasoning_content || '');
-      if (validate(out)) return { out, tokens: data.usage?.total_tokens || 0 };
-      throw new Error('JSON did not match the requested shape');
+      const v = validate(out); // true, or a string saying what is wrong
+      if (v === true) return { out, tokens: data.usage?.total_tokens || 0 };
+      throw new Error(typeof v === 'string' ? v : 'JSON did not match the requested shape');
     } catch (err) {
+      console.log(JSON.stringify({ call: label, invalid: err.message, finish: data.choices?.[0]?.finish_reason, content: String(m.content || '').slice(0, 400) }));
       msgs = [...messages, { role: 'assistant', content: m.content || '' }, { role: 'user', content: `That was not valid: ${err.message}. Reply again with ONLY the JSON object in the requested shape.` }];
     }
   }
@@ -93,7 +96,7 @@ function normalise(out, warnings = []) {
   return { quiz: res.quiz, warnings: [...warnings, ...res.warnings] };
 }
 
-// ---------- /api/transcribe (Nano Omni, images; PDFs are rasterised in the browser) ----------
+// ---------- /api/transcribe (Nemotron 3.5 Super VL, images; PDFs are rasterised in the browser) ----------
 
 async function transcribe(req, env) {
   const form = await req.formData().catch(() => null);
@@ -111,9 +114,9 @@ async function transcribe(req, env) {
   }
   if (size > MAX_UPLOAD) return bad('Upload is larger than 8 MB', 'file');
   await rateLimit(req, env);
-  const { out } = await chat(env, env.MODEL_NANO_OMNI, [{ role: 'user', content: [{ type: 'text', text: TRANSCRIBE_PROMPT }, ...images] }],
-    { temperature: 0, max_tokens: 6000, label: 'omni-transcribe', validate: (o) => Array.isArray(o.questions) });
-  return json(normalise(out, ['Transcribed from your image by Nemotron Nano Omni. Check every line before running.']));
+  const { out } = await chat(env, env.MODEL_VISION, [{ role: 'user', content: [{ type: 'text', text: TRANSCRIBE_PROMPT }, ...images] }],
+    { temperature: 0, max_tokens: 6000, label: 'vision-transcribe', validate: (o) => Array.isArray(o.questions) });
+  return json(normalise(out, ['Transcribed from your image by Nemotron 3.5 Super VL. Check every line before running.']));
 }
 
 // ---------- /api/run: simulate (5x Nano, parallel) then judge (1x Ultra), streamed as SSE ----------
@@ -141,8 +144,12 @@ async function run(req, env) {
     const noKey = { ...clean, questions: qs.map(({ answer, ...q }) => q) }; // answer key never reaches the students
     const results = await Promise.allSettled(PERSONAS.map(async (p) => {
       const { out, tokens } = await chat(env, env.MODEL_NANO, personaPrompt(p, noKey), {
-        temperature: 0.7, label: `nano-${p.name}`,
-        validate: (o) => Array.isArray(o.answers) && o.answers.filter((a) => ids.has(a.questionId)).length >= qs.length * 0.8,
+        temperature: 0.7, label: `nano-${p.name}`, extra: { chat_template_kwargs: { enable_thinking: false } }, // students answer on instinct; halves latency
+        validate: (o) => {
+          const got = new Set((Array.isArray(o.answers) ? o.answers : []).map((a) => a.questionId));
+          const missing = [...ids].filter((id) => !got.has(id));
+          return missing.length <= qs.length * 0.2 || `you answered ${ids.size - missing.length} of ${ids.size} questions; missing ${missing.join(', ')}. Include all ${ids.size}`;
+        },
       });
       nanoTokens += tokens;
       const sheet = { persona: p.name, answers: out.answers.filter((a) => ids.has(a.questionId)).map((a) => ({ questionId: a.questionId, choice: String(a.choice || '').toUpperCase().slice(0, 1), reason: String(a.reason || ''), confidence: Math.max(0, Math.min(1, +a.confidence || 0)) })) };

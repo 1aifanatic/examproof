@@ -13,7 +13,7 @@ for await (const chunk of r.body.pipeThrough(new TextDecoderStream())) {
     const block = buf.slice(0, i); buf = buf.slice(i + 2);
     const event = block.match(/^event: (.+)$/m)[1], data = JSON.parse(block.match(/^data: (.*)$/m)[1]);
     events.push({ event, data });
-    console.log(`${((Date.now() - t0) / 1000).toFixed(1)}s ${event}`, event === 'persona_done' ? data.persona : event === 'error' ? data : '');
+    console.log(`${((Date.now() - t0) / 1000).toFixed(1)}s ${event}`, event === 'persona_done' ? data.persona : /error|persona_failed/.test(event) ? data : '');
   }
 }
 const err = events.find((e) => e.event === 'error');

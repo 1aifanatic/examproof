@@ -40,7 +40,7 @@ function showError(msg, offerSample = true) {
 }
 function hideError() { $('#input-error').hidden = true; }
 
-// Upload: images are downscaled, PDFs rasterised (first 3 pages) in the browser, then read by Nano Omni.
+// Upload: images are downscaled, PDFs rasterised (first 3 pages) in the browser, then read by Nemotron 3.5 Super VL.
 $('#file').onchange = async (e) => {
   const file = e.target.files[0];
   e.target.value = '';

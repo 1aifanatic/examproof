@@ -1,19 +1,18 @@
 # STATE — ExamProof (updated 2026-10-22)
 
 ## Works (verified live)
-- Deployed: https://examproof.aiconic-innovations.workers.dev (Cloudflare account aiconic.innovations@gmail.com)
-- Input screen, live question counter, sample quiz, upload (image + PDF via pdf.js) -> /api/transcribe
-- /api/run SSE pipeline (5x Nano parallel -> Ultra judge), retry + JSON repair, KV rate limit (20/h/IP)
-- Report: traffic lights, persona table, word diff rewrite, accept/keep, copy/download
-- Sample quiz falls back to a saved report when the live run fails (so the demo never dead-ends)
+- https://examproof.aiconic-innovations.workers.dev, live on Token Factory (NEBIUS_API_KEY is a Worker secret)
+- Models (confirmed via /v1/models): Nano `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (thinking off for students), Ultra `nvidia/Nemotron-3-Ultra-550b-a55b`, vision `nvidia/Nemotron-3.5-Super-VL` (Nano Omni is not in the catalog)
+- Sample quiz: Q4/Q7/Q9 flagged in 8/8 runs with the current prompts; clean control quiz gives 0 flags; runs take 11–40s
+- Photo transcription (VL) and messy-text fallback (Nano) verified locally against the real API
+- UI verified in the browser on the live site (desktop and 390px phone width, no horizontal scroll)
+- Public repo https://github.com/1aifanatic/examproof; Actions run the parser check on push
+- `npm run e2e -- <url>` runs the sample through /api/run; `npm run mock` provides a stand-in for keyless testing
 
-## Blocked / not yet verified
-- NEBIUS_API_KEY not set yet (waiting on .dev.vars) -> live runs return 503 (sample falls back to saved report)
-- Pipeline verified end to end against test/mock-nebius.mjs (SSE order, think/fence stripping, verdict mapping)
-- Model IDs for Ultra and Nano Omni are guesses; verify with GET /v1/models once the key is in
-- Live JSON behaviour of Nemotron (reasoning tokens, `reasoning_content`) untested
+## Known limits
+- Rate limit is 20 runs/hour/IP (KV is eventually consistent, so it's approximate)
+- The deploy step in the Action is skipped until the CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID repo secrets exist
+- Local `wrangler dev` workerd only supports compat dates up to 2026-06-18, hence compatibility_date 2026-06-01
 
-## Next
-1. `npx wrangler secret put NEBIUS_API_KEY`, verify model IDs, run the sample live, tune prompts until Q4/Q7/Q9 flag reliably
-2. DONE: public repo https://github.com/1aifanatic/examproof. Deploy Action needs CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID repo secrets (skips deploy without them)
-3. Fill FEEDBACK.md, record video, submit on Devpost by Oct 29
+## Next (user)
+See the checklist in SUBMISSION.md: video, Devpost form, team/eligibility. Submit by Oct 29.

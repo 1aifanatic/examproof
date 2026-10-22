@@ -4,6 +4,8 @@
 
 Teachers usually find out a question is ambiguous, has two right answers or gives itself away only after the quiz is handed out. ExamProof gives the quiz to a simulated class first. A head-teacher model then reads how the class answered and flags the questions worth a second look, each with a plain-English reason and a suggested rewrite.
 
+![ExamProof report: question 4 flagged as having two defensible answers, with each simulated student's answer](docs/report.jpg)
+
 **Live demo:** https://examproof.aiconic-innovations.workers.dev (click **Try a sample quiz**, then **Run the practice test**). To skip the run and see a saved report, go to [`/#sample-report`](https://examproof.aiconic-innovations.workers.dev/#sample-report).
 
 Built for the Nebius x NVIDIA Global AI Hackathon (Best Apps & Agents track) during the hackathon, starting Oct 22, 2026.
@@ -12,9 +14,11 @@ Built for the Nebius x NVIDIA Global AI Hackathon (Best Apps & Agents track) dur
 
 | Stage | Model (Nebius Token Factory) | What it does |
 | --- | --- | --- |
-| 0. Parse | deterministic regex, then **Nemotron 3 Nano** as a fallback | Turns pasted text into questions, options and a key. Photos and PDFs go to **Nemotron Nano Omni** and the transcription is always shown to you before running. |
-| 1. Simulate | **Nemotron 3 Nano**, 5 parallel calls, temp 0.7 | Maya (struggling), Sam (average), Priya (careful top student), Leo (fast guesser), Omar (literal reader) each take the quiz **without the answer key**. |
-| 2. Judge | **Nemotron 3 Ultra**, 1 call, temp 0.2 | Reads the key and all five answer sheets, then flags: two defensible answers, key likely wrong, answer leaked elsewhere, ambiguous, wording trap, too easy. Writes the minimum rewrite. |
+| 0. Parse | deterministic regex, then **Nemotron 3 Nano** as a fallback | Turns pasted text into questions, options and a key. Photos and PDFs go to **Nemotron 3.5 Super VL** and the transcription is always shown to you before running. |
+| 1. Simulate | **Nemotron 3 Nano**, 5 parallel calls, temp 0.7, thinking off (students answer on instinct) | Maya (struggling), Sam (average), Priya (careful top student), Leo (fast guesser), Omar (literal reader) each take the quiz **without the answer key**. |
+| 2. Judge | **Nemotron 3 Ultra**, 1 call, temp 0.2, reasoning on | Reads the key and all five answer sheets, then flags: two defensible answers, key likely wrong, answer leaked elsewhere, ambiguous, wording trap, too easy. Writes the minimum rewrite. |
+
+A typical 10-question run takes 12–40 seconds and about 11k tokens. On the sample quiz, the three seeded broken questions were flagged in 8 of 8 runs with the current prompts (5 local, 3 on the live site), and a clean control quiz produced no flags.
 
 Results stream to the browser with Server-Sent Events, so each student's card flips to "done" as its Nano call returns.
 
@@ -22,7 +26,7 @@ Results stream to the browser with Server-Sent Events, so each student's card fl
 browser ──> Cloudflare Worker (static UI + /api) ──> Nebius Token Factory (OpenAI-compatible)
                                                        ├─ Nemotron 3 Nano  x5 (students)
                                                        ├─ Nemotron 3 Ultra x1 (head teacher)
-                                                       └─ Nemotron Nano Omni (photo / PDF)
+                                                       └─ Nemotron 3.5 Super VL (photo / PDF)
 ```
 
 ## Run locally
@@ -52,8 +56,8 @@ npx wrangler deploy
 | --- | --- |
 | `NEBIUS_BASE_URL` | `https://api.tokenfactory.nebius.com/v1/` |
 | `MODEL_NANO` | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` |
-| `MODEL_NANO_OMNI` | Nemotron Nano Omni ID from the Token Factory catalog |
-| `MODEL_ULTRA` | Nemotron 3 Ultra ID from the Token Factory catalog |
+| `MODEL_VISION` | `nvidia/Nemotron-3.5-Super-VL` |
+| `MODEL_ULTRA` | `nvidia/Nemotron-3-Ultra-550b-a55b` |
 | `RUNS_PER_HOUR` | per-IP limit for the public demo (default 20) |
 
 `GET /api/health` echoes the active config.
