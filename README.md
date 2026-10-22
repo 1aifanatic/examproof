@@ -33,7 +33,10 @@ npm i
 cp .dev.vars.example .dev.vars   # add your Token Factory key
 npm run dev                      # http://localhost:8787
 npm test                         # parser self-check
+npm run e2e -- http://127.0.0.1:8787   # runs the sample quiz through /api/run and prints every flag
 ```
+
+No key yet? Run `npm run mock`, then `npx wrangler dev --var NEBIUS_BASE_URL:http://127.0.0.1:9999/v1/ --var NEBIUS_API_KEY:mock --var MODEL_ULTRA:mock-ULTRA` to exercise the full pipeline against a stand-in model server.
 
 ## Deploy
 
