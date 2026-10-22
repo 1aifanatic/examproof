@@ -1,0 +1,13 @@
+{
+  "name": "examproof",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node public/parse.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.100.0"
+  }
+}

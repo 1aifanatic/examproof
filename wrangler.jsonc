@@ -1,0 +1,20 @@
+{
+  "name": "examproof",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [{ "binding": "RATE_LIMIT", "id": "2e4b6106e0174f6e9172d26f5366584d" }],
+  "vars": {
+    "NEBIUS_BASE_URL": "https://api.tokenfactory.nebius.com/v1/",
+    "MODEL_NANO": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
+    "MODEL_NANO_OMNI": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning",
+    "MODEL_ULTRA": "nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B",
+    "RUNS_PER_HOUR": "20"
+  },
+  "observability": { "enabled": true }
+}
